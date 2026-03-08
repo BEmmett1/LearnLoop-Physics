@@ -1,0 +1,517 @@
+[
+  {
+    "id": "Q1",
+    "topic_id": "T1_UNITS",
+    "type": "MCQ",
+    "difficulty": 1,
+    "prompt": "Convert 3.2 km to meters.",
+    "choices": ["0.0032 m", "32 m", "320 m", "3200 m"],
+    "correct_choice_index": 3,
+    "correct_answer_text": "3200 m",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "1 km = 1000 m. 3.2 km x 1000 = 3200 m.",
+    "micro_skill_ids": ["MS1"],
+    "misconceptions": [
+      { "key": "MC_KM_TO_M_INVERTED", "when_choice_index": 0, "note": "Inverted conversion factor." },
+      { "key": "MC_MISSING_ZERO", "when_choice_index": 2, "note": "Dropped a zero in the conversion." }
+    ]
+  },
+  {
+    "id": "Q2",
+    "topic_id": "T1_UNITS",
+    "type": "NUMERIC",
+    "difficulty": 1,
+    "prompt": "A car travels 500 m in 20 s. What is its average speed in m/s?",
+    "choices": null,
+    "correct_choice_index": null,
+    "correct_answer_text": "25 m/s",
+    "numeric_answer": 25,
+    "numeric_tolerance": 0.01,
+    "canonical_solution": "Average speed = distance / time = 500 / 20 = 25 m/s.",
+    "micro_skill_ids": ["MS2", "MS8"],
+    "hints": [
+      "Average speed is distance divided by time.",
+      "Use meters and seconds, then compute 500 / 20."
+    ],
+    "misconceptions": [
+      { "key": "MC_DIVIDE_WRONG_WAY", "when_numeric_answer_is": 0.04, "note": "Used time/distance instead of distance/time." }
+    ]
+  },
+  {
+    "id": "Q3",
+    "topic_id": "T1_UNITS",
+    "type": "MCQ",
+    "difficulty": 1,
+    "prompt": "Which unit is correct for acceleration?",
+    "choices": ["m/s", "m/s^2", "m^2/s", "s/m"],
+    "correct_choice_index": 1,
+    "correct_answer_text": "m/s^2",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "Acceleration is change in velocity (m/s) per time (s), so units are (m/s)/s = m/s^2.",
+    "micro_skill_ids": ["MS2"],
+    "misconceptions": [
+      { "key": "MC_ACCEL_EQUALS_VELOCITY_UNIT", "when_choice_index": 0, "note": "Confused velocity units with acceleration units." }
+    ]
+  },
+  {
+    "id": "Q4",
+    "topic_id": "T2_VECTORS",
+    "type": "MCQ",
+    "difficulty": 1,
+    "prompt": "Which is a vector?",
+    "choices": ["speed", "distance", "velocity", "time"],
+    "correct_choice_index": 2,
+    "correct_answer_text": "velocity",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "Vectors have magnitude and direction. Velocity includes direction, speed does not.",
+    "micro_skill_ids": ["MS3"],
+    "misconceptions": [
+      { "key": "MC_SPEED_VECTOR", "when_choice_index": 0, "note": "Thinks speed includes direction." }
+    ]
+  },
+  {
+    "id": "Q5",
+    "topic_id": "T2_VECTORS",
+    "type": "MCQ",
+    "difficulty": 1,
+    "prompt": "A student says \"My displacement is 5 meters.\" What is missing?",
+    "choices": ["time", "direction", "mass", "temperature"],
+    "correct_choice_index": 1,
+    "correct_answer_text": "direction",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "Displacement is a vector, so direction is needed (for example, 5 m east).",
+    "micro_skill_ids": ["MS3"],
+    "misconceptions": [
+      { "key": "MC_CONFUSE_DISPLACEMENT_WITH_SPEED", "when_choice_index": 0, "note": "Treats displacement like a rate needing time." }
+    ]
+  },
+  {
+    "id": "Q6",
+    "topic_id": "T3_DISPLACEMENT",
+    "type": "MCQ",
+    "difficulty": 1,
+    "prompt": "You walk 3 m east then 3 m west. Distance and displacement are:",
+    "choices": ["0 m, 0 m", "6 m, 0 m", "3 m, 6 m", "6 m, 6 m"],
+    "correct_choice_index": 1,
+    "correct_answer_text": "6 m, 0 m",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "Distance adds path length: 3 + 3 = 6 m. Displacement is final minus initial position: back to start, so 0 m.",
+    "micro_skill_ids": ["MS4"],
+    "misconceptions": [
+      { "key": "MC_DISTANCE_EQUALS_DISPLACEMENT_ALWAYS", "when_choice_index": 3, "note": "Thinks distance always equals displacement." }
+    ]
+  },
+  {
+    "id": "Q7",
+    "topic_id": "T3_DISPLACEMENT",
+    "type": "SETUP",
+    "difficulty": 1,
+    "prompt": "A runner completes one full lap around a 400 m track and stops at the start. Write: (1) distance (2) displacement.",
+    "choices": null,
+    "correct_choice_index": null,
+    "correct_answer_text": "distance = 400 m, displacement = 0 m",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "Distance is total path traveled: 400 m. Displacement depends only on start and end positions: same point, so 0 m.",
+    "micro_skill_ids": ["MS4", "MS12"],
+    "misconceptions": [
+      { "key": "MC_DISPLACEMENT_PATH_LENGTH", "when_contains": "400", "note": "Uses path length as displacement." }
+    ]
+  },
+  {
+    "id": "Q8",
+    "topic_id": "T4_VELOCITY",
+    "type": "MCQ",
+    "difficulty": 1,
+    "prompt": "Average velocity depends on:",
+    "choices": ["distance and time", "displacement and time", "speed and time", "acceleration and time"],
+    "correct_choice_index": 1,
+    "correct_answer_text": "displacement and time",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "Average velocity = displacement / time.",
+    "micro_skill_ids": ["MS5"],
+    "misconceptions": [
+      { "key": "MC_VELOCITY_USES_DISTANCE", "when_choice_index": 0, "note": "Confuses velocity with speed." }
+    ]
+  },
+  {
+    "id": "Q9",
+    "topic_id": "T4_VELOCITY",
+    "type": "NUMERIC",
+    "difficulty": 1,
+    "prompt": "A car’s displacement is 120 m east in 8 s. What is average velocity? Use east as positive.",
+    "choices": null,
+    "correct_choice_index": null,
+    "correct_answer_text": "+15 m/s",
+    "numeric_answer": 15,
+    "numeric_tolerance": 0.02,
+    "canonical_solution": "Average velocity = displacement / time = 120 / 8 = 15 m/s. East is positive, so +15 m/s.",
+    "micro_skill_ids": ["MS5", "MS8"],
+    "misconceptions": [
+      { "key": "MC_FORGET_DISPLACEMENT", "when_numeric_answer_is": 0, "note": "Returned zero or ignored displacement." }
+    ]
+  },
+  {
+    "id": "Q10",
+    "topic_id": "T5_ACCEL",
+    "type": "MCQ",
+    "difficulty": 1,
+    "prompt": "Acceleration is:",
+    "choices": ["change in position over time", "change in velocity over time", "velocity over distance", "distance over velocity"],
+    "correct_choice_index": 1,
+    "correct_answer_text": "change in velocity over time",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "Acceleration measures how velocity changes per unit time.",
+    "micro_skill_ids": ["MS6"],
+    "misconceptions": [
+      { "key": "MC_ACCEL_EQUALS_SPEED", "when_choice_index": 0, "note": "Thinks acceleration is position change over time." }
+    ]
+  },
+  {
+    "id": "Q11",
+    "topic_id": "T5_ACCEL",
+    "type": "NUMERIC",
+    "difficulty": 1,
+    "prompt": "Velocity changes from 2 m/s to 14 m/s in 4 s. What is acceleration?",
+    "choices": null,
+    "correct_choice_index": null,
+    "correct_answer_text": "3 m/s^2",
+    "numeric_answer": 3,
+    "numeric_tolerance": 0.02,
+    "canonical_solution": "a = (v_f - v_i)/t = (14 - 2)/4 = 12/4 = 3 m/s^2.",
+    "micro_skill_ids": ["MS6", "MS8"],
+    "misconceptions": [
+      { "key": "MC_USED_VF_NOT_DELTA_V", "when_numeric_answer_is": 3.5, "note": "Used v_f/t instead of change in velocity over time." }
+    ]
+  },
+  {
+    "id": "Q12",
+    "topic_id": "T5_ACCEL",
+    "type": "MCQ",
+    "difficulty": 2,
+    "prompt": "An object moving to the right is slowing down. If right is positive, its acceleration is:",
+    "choices": ["positive", "negative", "zero", "cannot tell"],
+    "correct_choice_index": 1,
+    "correct_answer_text": "negative",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "If velocity is positive but speed is decreasing, acceleration must point opposite velocity, so negative.",
+    "micro_skill_ids": ["MS6", "MS9"],
+    "misconceptions": [
+      { "key": "MC_ACCEL_SAME_SIGN_AS_VELOCITY_ALWAYS", "when_choice_index": 0, "note": "Assumes acceleration always matches velocity direction." }
+    ]
+  },
+  {
+    "id": "Q13",
+    "topic_id": "T6_XT_GRAPHS",
+    "type": "MCQ",
+    "difficulty": 1,
+    "prompt": "On a position-time graph, the slope represents:",
+    "choices": ["acceleration", "speed", "velocity", "force"],
+    "correct_choice_index": 2,
+    "correct_answer_text": "velocity",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "Slope is change in position over time, which is velocity (with sign).",
+    "micro_skill_ids": ["MS10"],
+    "misconceptions": [
+      { "key": "MC_SLOPE_ACCEL", "when_choice_index": 0, "note": "Confuses slope meaning between different graph types." }
+    ]
+  },
+  {
+    "id": "Q14",
+    "topic_id": "T6_XT_GRAPHS",
+    "type": "MCQ",
+    "difficulty": 1,
+    "prompt": "A flat (horizontal) line on a position-time graph means the object is:",
+    "choices": ["speeding up", "constant acceleration", "at rest", "moving backward fast"],
+    "correct_choice_index": 2,
+    "correct_answer_text": "at rest",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "Flat line means position is not changing, so velocity is zero and the object is at rest.",
+    "micro_skill_ids": ["MS10"],
+    "misconceptions": [
+      { "key": "MC_FLAT_LINE_CONSTANT_ACCEL", "when_choice_index": 1, "note": "Thinks flat line implies constant acceleration." }
+    ]
+  },
+  {
+    "id": "Q15",
+    "topic_id": "T6_XT_GRAPHS",
+    "type": "SETUP",
+    "difficulty": 2,
+    "prompt": "If position increases from 2 m to 14 m over 4 s, what is average velocity? Show the formula you used.",
+    "choices": null,
+    "correct_choice_index": null,
+    "correct_answer_text": "v_avg = (14 - 2)/4 = 3 m/s",
+    "numeric_answer": 3,
+    "numeric_tolerance": 0.02,
+    "canonical_solution": "Average velocity = (x_f - x_i)/t = (14 - 2)/4 = 3 m/s.",
+    "micro_skill_ids": ["MS10", "MS8", "MS12"],
+    "misconceptions": [
+      { "key": "MC_FORGOT_INITIAL_POSITION", "when_contains": "14/4", "note": "Used final position only, forgot initial position." }
+    ]
+  },
+  {
+    "id": "Q16",
+    "topic_id": "T7_VT_GRAPHS",
+    "type": "MCQ",
+    "difficulty": 1,
+    "prompt": "On a velocity-time graph, the slope represents:",
+    "choices": ["acceleration", "displacement", "speed", "jerk"],
+    "correct_choice_index": 0,
+    "correct_answer_text": "acceleration",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "Slope on v(t) is change in velocity over time, which is acceleration.",
+    "micro_skill_ids": ["MS10", "MS6"],
+    "misconceptions": [
+      { "key": "MC_SLOPE_IS_AREA_CONFUSION", "when_choice_index": 1, "note": "Mixed up slope and area." }
+    ]
+  },
+  {
+    "id": "Q17",
+    "topic_id": "T7_VT_GRAPHS",
+    "type": "MCQ",
+    "difficulty": 1,
+    "prompt": "On a velocity-time graph, the area under the curve represents:",
+    "choices": ["acceleration", "displacement", "force", "time"],
+    "correct_choice_index": 1,
+    "correct_answer_text": "displacement",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "Area under v(t) is integral of velocity over time, which gives displacement. In high school terms, it is velocity x time for constant velocity.",
+    "micro_skill_ids": ["MS11"],
+    "misconceptions": [
+      { "key": "MC_AREA_ACCEL", "when_choice_index": 0, "note": "Thinks area gives acceleration." }
+    ]
+  },
+  {
+    "id": "Q18",
+    "topic_id": "T7_VT_GRAPHS",
+    "type": "NUMERIC",
+    "difficulty": 1,
+    "prompt": "A constant velocity of 6 m/s lasts for 5 s. What is displacement?",
+    "choices": null,
+    "correct_choice_index": null,
+    "correct_answer_text": "30 m",
+    "numeric_answer": 30,
+    "numeric_tolerance": 0.02,
+    "canonical_solution": "Displacement = velocity x time = 6 x 5 = 30 m.",
+    "micro_skill_ids": ["MS11", "MS8"],
+    "misconceptions": [
+      { "key": "MC_DIVIDE_INSTEAD_OF_MULTIPLY", "when_numeric_answer_is": 1.2, "note": "Divided velocity by time." }
+    ]
+  },
+  {
+    "id": "Q19",
+    "topic_id": "T8_CONST_A",
+    "type": "MCQ",
+    "difficulty": 1,
+    "prompt": "Which equation works when acceleration is constant and time is known?",
+    "choices": ["v = d/t", "v_f = v_i + a t", "d = v_f t", "a = d/t"],
+    "correct_choice_index": 1,
+    "correct_answer_text": "v_f = v_i + a t",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "For constant acceleration, the velocity changes linearly: v_f = v_i + a t.",
+    "micro_skill_ids": ["MS7"],
+    "misconceptions": [
+      { "key": "MC_USE_AVG_SPEED_ALWAYS", "when_choice_index": 0, "note": "Defaults to v = d/t even when acceleration exists." }
+    ]
+  },
+  {
+    "id": "Q20",
+    "topic_id": "T8_CONST_A",
+    "type": "NUMERIC",
+    "difficulty": 1,
+    "prompt": "v_i = 3 m/s, a = 2 m/s^2, t = 5 s. Find v_f.",
+    "choices": null,
+    "correct_choice_index": null,
+    "correct_answer_text": "13 m/s",
+    "numeric_answer": 13,
+    "numeric_tolerance": 0.02,
+    "canonical_solution": "v_f = v_i + a t = 3 + 2(5) = 13 m/s.",
+    "micro_skill_ids": ["MS7", "MS8"],
+    "misconceptions": [
+      { "key": "MC_DID_NOT_ADD_VI", "when_numeric_answer_is": 10, "note": "Computed a t only, forgot v_i." }
+    ]
+  },
+  {
+    "id": "Q21",
+    "topic_id": "T8_CONST_A",
+    "type": "NUMERIC",
+    "difficulty": 2,
+    "prompt": "From rest, a skateboard accelerates at 1.5 m/s^2 for 4 s. Find displacement.",
+    "choices": null,
+    "correct_choice_index": null,
+    "correct_answer_text": "12 m",
+    "numeric_answer": 12,
+    "numeric_tolerance": 0.05,
+    "canonical_solution": "From rest means v_i = 0. Use d = v_i t + 0.5 a t^2 = 0 + 0.5(1.5)(16) = 12 m.",
+    "micro_skill_ids": ["MS7", "MS8", "MS12"],
+    "misconceptions": [
+      { "key": "MC_FORGOT_HALF", "when_numeric_answer_is": 24, "note": "Forgot the 0.5 in d = 0.5 a t^2." }
+    ]
+  },
+  {
+    "id": "Q22",
+    "topic_id": "T8_CONST_A",
+    "type": "SETUP",
+    "difficulty": 2,
+    "prompt": "You know d, v_i, and t. Which equation could help you find acceleration? Write it.",
+    "choices": null,
+    "correct_choice_index": null,
+    "correct_answer_text": "d = v_i t + 0.5 a t^2",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "If d, v_i, and t are known, use d = v_i t + 0.5 a t^2 and solve for a.",
+    "micro_skill_ids": ["MS7", "MS12"],
+    "misconceptions": [
+      { "key": "MC_WRONG_EQUATION_FOR_GIVEN", "when_contains": "v_f = v_i + a t", "note": "Chooses equation that requires v_f, which is not given." }
+    ]
+  },
+  {
+    "id": "Q23",
+    "topic_id": "T9_FREE_FALL",
+    "type": "MCQ",
+    "difficulty": 1,
+    "prompt": "You choose up as positive. An object is thrown upward. During its flight (ignoring air), acceleration is:",
+    "choices": ["positive", "negative", "zero", "changes sign"],
+    "correct_choice_index": 1,
+    "correct_answer_text": "negative",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "Gravity points downward throughout the motion, so acceleration is constant downward. If up is positive, acceleration is negative.",
+    "micro_skill_ids": ["MS9", "MS13"],
+    "misconceptions": [
+      { "key": "MC_ACCEL_CHANGES_WITH_DIRECTION", "when_choice_index": 3, "note": "Thinks acceleration flips when object changes direction." }
+    ]
+  },
+  {
+    "id": "Q24",
+    "topic_id": "T9_FREE_FALL",
+    "type": "NUMERIC",
+    "difficulty": 2,
+    "prompt": "Dropped from rest. Using g = 9.8 m/s^2 downward, how fast after 3 s? If up is positive, include the sign.",
+    "choices": null,
+    "correct_choice_index": null,
+    "correct_answer_text": "-29.4 m/s",
+    "numeric_answer": -29.4,
+    "numeric_tolerance": 0.05,
+    "canonical_solution": "Use v_f = v_i + a t. Dropped from rest means v_i = 0. With up positive, a = -9.8. So v_f = 0 + (-9.8)(3) = -29.4 m/s.",
+    "micro_skill_ids": ["MS13", "MS7", "MS9", "MS8"],
+    "misconceptions": [
+      { "key": "MC_SIGN_ERROR_G", "when_numeric_answer_is": 29.4, "note": "Got magnitude right but sign wrong." }
+    ]
+  },
+  {
+    "id": "Q25",
+    "topic_id": "T9_FREE_FALL",
+    "type": "NUMERIC",
+    "difficulty": 2,
+    "prompt": "Dropped from rest for 2 s. How far does it fall? Give the magnitude in meters.",
+    "choices": null,
+    "correct_choice_index": null,
+    "correct_answer_text": "19.6 m",
+    "numeric_answer": 19.6,
+    "numeric_tolerance": 0.05,
+    "canonical_solution": "Use d = 0.5 g t^2. With g = 9.8 and t = 2: d = 0.5(9.8)(4) = 19.6 m.",
+    "micro_skill_ids": ["MS13", "MS7", "MS8"],
+    "misconceptions": [
+      { "key": "MC_FORGOT_HALF", "when_numeric_answer_is": 39.2, "note": "Forgot the 0.5 factor." }
+    ]
+  },
+  {
+    "id": "Q26",
+    "topic_id": "T10_MIXED",
+    "type": "SETUP",
+    "difficulty": 2,
+    "prompt": "A bike speeds up from 4 m/s to 10 m/s in 3 s. List Given and Find, then pick an equation to find acceleration.",
+    "choices": null,
+    "correct_choice_index": null,
+    "correct_answer_text": "Given v_i=4, v_f=10, t=3. Find a. Use a=(v_f-v_i)/t.",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "Extract Given: v_i = 4, v_f = 10, t = 3. Need a. Use a = (v_f - v_i)/t.",
+    "micro_skill_ids": ["MS12", "MS7", "MS8"],
+    "misconceptions": [
+      { "key": "MC_DEFAULT_TO_SPEED_FORMULA", "when_contains": "v = d/t", "note": "Defaults to speed formula without displacement." }
+    ]
+  },
+  {
+    "id": "Q27",
+    "topic_id": "T10_MIXED",
+    "type": "NUMERIC",
+    "difficulty": 2,
+    "prompt": "A bike speeds up from 4 m/s to 10 m/s in 3 s. What is acceleration?",
+    "choices": null,
+    "correct_choice_index": null,
+    "correct_answer_text": "2 m/s^2",
+    "numeric_answer": 2,
+    "numeric_tolerance": 0.02,
+    "canonical_solution": "a = (v_f - v_i)/t = (10 - 4)/3 = 6/3 = 2 m/s^2.",
+    "micro_skill_ids": ["MS6", "MS8"],
+    "misconceptions": [
+      { "key": "MC_ADDED_INSTEAD_OF_SUBTRACTED", "when_numeric_answer_is": 4.6666667, "note": "Added velocities or used wrong difference." }
+    ]
+  },
+  {
+    "id": "Q28",
+    "topic_id": "T10_MIXED",
+    "type": "NUMERIC",
+    "difficulty": 2,
+    "prompt": "A runner travels 50 m east in 10 s, then 30 m west in 5 s. Find average velocity (east positive).",
+    "choices": null,
+    "correct_choice_index": null,
+    "correct_answer_text": "+1.33 m/s",
+    "numeric_answer": 1.3333333,
+    "numeric_tolerance": 0.02,
+    "canonical_solution": "Displacement = +50 + (-30) = +20 m. Total time = 10 + 5 = 15 s. v_avg = 20/15 = 1.33 m/s (east).",
+    "micro_skill_ids": ["MS4", "MS5", "MS12", "MS8"],
+    "misconceptions": [
+      { "key": "MC_USED_DISTANCE_NOT_DISPLACEMENT", "when_numeric_answer_is": 5.3333333, "note": "Used 80/15 instead of 20/15." }
+    ]
+  },
+  {
+    "id": "Q29",
+    "topic_id": "T10_MIXED",
+    "type": "EXPLAIN",
+    "difficulty": 2,
+    "prompt": "Why can acceleration be negative even if an object is moving in the positive direction? (2 to 3 sentences)",
+    "choices": null,
+    "correct_choice_index": null,
+    "correct_answer_text": "Acceleration can point opposite velocity; negative means acceleration is in the negative direction; object can be slowing down while moving positive.",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "Velocity and acceleration are vectors and can point in different directions. If velocity is positive but decreasing, acceleration points negative.",
+    "micro_skill_ids": ["MS6", "MS9"],
+    "misconceptions": [
+      { "key": "MC_SIGN_EQUALS_SPEED", "when_contains": "negative means speed is negative", "note": "Treats sign as a property of speed rather than direction." }
+    ]
+  },
+  {
+    "id": "Q30",
+    "topic_id": "T10_MIXED",
+    "type": "EXPLAIN",
+    "difficulty": 2,
+    "prompt": "A student used v = d/t to solve a constant acceleration problem. Explain what is wrong and what they should do instead.",
+    "choices": null,
+    "correct_choice_index": null,
+    "correct_answer_text": "v=d/t gives average only; with acceleration use kinematics equations, or v_avg = (v_i+v_f)/2 if applicable; choose equation based on knowns.",
+    "numeric_answer": null,
+    "numeric_tolerance": null,
+    "canonical_solution": "v = d/t gives an average velocity when motion is uniform. With constant acceleration, velocity changes, so use kinematics equations and choose based on known values.",
+    "micro_skill_ids": ["MS7", "MS12"],
+    "misconceptions": [
+      { "key": "MC_ALWAYS_USE_V_EQ_D_OVER_T", "when_contains": "nothing wrong", "note": "Believes v=d/t always applies." }
+    ]
+  }
+]

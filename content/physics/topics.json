@@ -1,0 +1,72 @@
+[
+  {
+    "id": "T1_UNITS",
+    "name": "Units and Conversions",
+    "order": 1,
+    "prerequisite_topic_ids": []
+  },
+  {
+    "id": "T2_VECTORS",
+    "name": "Scalars vs Vectors",
+    "order": 2,
+    "prerequisite_topic_ids": ["T1_UNITS"]
+  },
+  {
+    "id": "T3_DISPLACEMENT",
+    "name": "Distance vs Displacement",
+    "order": 3,
+    "prerequisite_topic_ids": ["T1_UNITS", "T2_VECTORS"]
+  },
+  {
+    "id": "T4_VELOCITY",
+    "name": "Speed vs Velocity",
+    "order": 4,
+    "prerequisite_topic_ids": ["T3_DISPLACEMENT"]
+  },
+  {
+    "id": "T5_ACCEL",
+    "name": "Acceleration Basics",
+    "order": 5,
+    "prerequisite_topic_ids": ["T4_VELOCITY"]
+  },
+  {
+    "id": "T6_XT_GRAPHS",
+    "name": "Position-Time Graphs",
+    "order": 6,
+    "prerequisite_topic_ids": ["T3_DISPLACEMENT", "T4_VELOCITY"]
+  },
+  {
+    "id": "T7_VT_GRAPHS",
+    "name": "Velocity-Time Graphs",
+    "order": 7,
+    "prerequisite_topic_ids": ["T4_VELOCITY", "T5_ACCEL"]
+  },
+  {
+    "id": "T8_CONST_A",
+    "name": "Constant Acceleration Equations",
+    "order": 8,
+    "prerequisite_topic_ids": ["T5_ACCEL"]
+  },
+  {
+    "id": "T9_FREE_FALL",
+    "name": "Free Fall and Sign Conventions",
+    "order": 9,
+    "prerequisite_topic_ids": ["T8_CONST_A"]
+  },
+  {
+    "id": "T10_MIXED",
+    "name": "Mixed Word Problems Checkpoint",
+    "order": 10,
+    "prerequisite_topic_ids": [
+      "T1_UNITS",
+      "T2_VECTORS",
+      "T3_DISPLACEMENT",
+      "T4_VELOCITY",
+      "T5_ACCEL",
+      "T6_XT_GRAPHS",
+      "T7_VT_GRAPHS",
+      "T8_CONST_A",
+      "T9_FREE_FALL"
+    ]
+  }
+]

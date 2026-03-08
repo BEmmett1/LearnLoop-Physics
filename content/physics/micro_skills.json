@@ -1,0 +1,15 @@
+[
+  { "id": "MS1", "name": "Unit conversion" },
+  { "id": "MS2", "name": "Dimensional analysis / unit sanity check" },
+  { "id": "MS3", "name": "Scalar vs vector identification" },
+  { "id": "MS4", "name": "Distance vs displacement reasoning" },
+  { "id": "MS5", "name": "Speed vs velocity reasoning" },
+  { "id": "MS6", "name": "Acceleration concept (rate of change of velocity)" },
+  { "id": "MS7", "name": "Choose the right kinematics equation" },
+  { "id": "MS8", "name": "Algebra solve for unknown" },
+  { "id": "MS9", "name": "Sign conventions (positive direction, negatives)" },
+  { "id": "MS10", "name": "Graph slope interpretation" },
+  { "id": "MS11", "name": "Graph area interpretation" },
+  { "id": "MS12", "name": "Read word problems (Given/Find)" },
+  { "id": "MS13", "name": "Free fall reasoning (g, direction)" }
+]
