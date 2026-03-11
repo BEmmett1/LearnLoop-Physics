@@ -78,6 +78,15 @@ npm run dev
 - `npm run test:watch` runs tests in watch mode
 - `npm run test:coverage` runs tests with coverage output
 
+## CI Environment Variables
+
+Set these repository secrets in GitHub for CI builds:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+These are required because `npm run build` evaluates app code paths that depend on Supabase configuration.
+
 ## Testing
 
 Current baseline coverage:
