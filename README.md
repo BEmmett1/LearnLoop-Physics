@@ -103,3 +103,13 @@ Deferred to next phase:
 - Browser E2E tests (Playwright)
 - End-to-end coverage for full auth-to-learning user journeys
 - Tests for future `SETUP` and `EXPLAIN` submission flows
+
+
+### E2E Environment Variables
+
+For Playwright core-journey coverage, set:
+- E2E_USER_EMAIL
+- E2E_USER_PASSWORD
+- E2E_BASE_URL (optional, defaults to http://127.0.0.1:3000)
+
+

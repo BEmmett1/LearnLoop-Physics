@@ -26,6 +26,22 @@ function asChoices(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
+function diagnosticErrorMessage(errCode: string) {
+  const map: Record<string, string> = {
+    bad_request: "Your submission was missing required fields.",
+    bad_session: "This diagnostic session is invalid or has expired.",
+    question_not_found: "We could not find that diagnostic question.",
+    wrong_type: "That answer type does not match the current question.",
+    unsupported_type: "That question type is not supported.",
+    empty_response: "Please enter an answer before submitting.",
+    bad_number: "Please enter a valid numeric answer.",
+    attempt_insert: "We could not save your answer right now. Please retry.",
+    evaluation_failed: "We saved your answer, but feedback evaluation was unavailable."
+  };
+
+  return map[errCode] ?? "An unexpected error occurred while processing your answer.";
+}
+
 export default async function DiagnosticPage({
   searchParams
 }: {
@@ -35,6 +51,7 @@ export default async function DiagnosticPage({
   const sessionId = String(sp.session ?? "");
   const completeFlag = String(sp.complete ?? "");
   const correct = String(sp.correct ?? "");
+  const errCode = String(sp.err ?? "");
 
   const supabase = await createSupabaseServerClient();
 
@@ -53,7 +70,7 @@ export default async function DiagnosticPage({
       <main style={{ padding: 24, maxWidth: 780, margin: "0 auto" }}>
         <h1 style={{ marginBottom: 8 }}>Diagnostic</h1>
         <p style={{ color: "#444" }}>
-          Start a 15-question mixed diagnostic (MCQ + numeric) to calibrate your mastery map.
+          Start a 15-question mixed diagnostic (MCQ, numeric, setup, explain) to calibrate your mastery map.
         </p>
         <form action={startDiagnosticSession}>
           <button
@@ -80,7 +97,7 @@ export default async function DiagnosticPage({
   const { data: allQuestions, error: questionsErr } = await supabase
     .from("questions")
     .select("id,type,difficulty,prompt,choices,micro_skill_ids")
-    .in("type", ["MCQ", "NUMERIC"])
+    .in("type", ["MCQ", "NUMERIC", "SETUP", "EXPLAIN"])
     .order("id");
 
   if (questionsErr || !allQuestions || allQuestions.length === 0) {
@@ -113,9 +130,30 @@ export default async function DiagnosticPage({
         <p style={{ color: "#444" }}>
           Great work. Your initial mastery profile is now ready, and learning topics are unlocked.
         </p>
+        {errCode && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: 12,
+              borderRadius: 10,
+              background: "#fff3f3",
+              border: "1px solid #ddd"
+            }}
+          >
+            {diagnosticErrorMessage(errCode)}
+          </div>
+        )}
         <a
           href="/dashboard?diag=complete"
-          style={{ display: "inline-block", marginTop: 12, padding: "10px 12px", border: "1px solid #ddd", borderRadius: 10, textDecoration: "none", color: "#111" }}
+          style={{
+            display: "inline-block",
+            marginTop: 12,
+            padding: "10px 12px",
+            border: "1px solid #ddd",
+            borderRadius: 10,
+            textDecoration: "none",
+            color: "#111"
+          }}
         >
           Continue to dashboard
         </a>
@@ -149,6 +187,20 @@ export default async function DiagnosticPage({
         <a href="/dashboard">Back to dashboard</a>
       </div>
 
+      {errCode && (
+        <div
+          style={{
+            marginTop: 16,
+            padding: 12,
+            borderRadius: 10,
+            background: "#fff3f3",
+            border: "1px solid #ddd"
+          }}
+        >
+          {diagnosticErrorMessage(errCode)}
+        </div>
+      )}
+
       {showFeedback && (
         <div
           style={{
@@ -169,9 +221,7 @@ export default async function DiagnosticPage({
         </div>
         <div style={{ fontSize: 18, fontWeight: 700, marginTop: 8 }}>{nextQuestion.prompt}</div>
         {microSkills.length > 0 && (
-          <div style={{ color: "#666", fontSize: 12, marginTop: 8 }}>
-            Skills: {microSkills.join(", ")}
-          </div>
+          <div style={{ color: "#666", fontSize: 12, marginTop: 8 }}>Skills: {microSkills.join(", ")}</div>
         )}
 
         {nextQuestion.type === "MCQ" && (
@@ -227,7 +277,52 @@ export default async function DiagnosticPage({
             </button>
           </form>
         )}
+
+        {nextQuestion.type === "SETUP" && (
+          <form action={submitDiagnosticAttempt} style={{ marginTop: 14, display: "grid", gap: 10 }}>
+            <input type="hidden" name="sessionId" value={sessionId} />
+            <input type="hidden" name="questionId" value={nextQuestion.id} />
+            <input type="hidden" name="type" value="SETUP" />
+
+            <label style={{ display: "grid", gap: 6 }}>
+              Write your setup
+              <textarea
+                name="setupInput"
+                rows={6}
+                placeholder="List known values, unknowns, and equations you plan to use."
+                style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd", resize: "vertical" }}
+              />
+            </label>
+
+            <button type="submit" style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}>
+              Submit setup
+            </button>
+          </form>
+        )}
+
+        {nextQuestion.type === "EXPLAIN" && (
+          <form action={submitDiagnosticAttempt} style={{ marginTop: 14, display: "grid", gap: 10 }}>
+            <input type="hidden" name="sessionId" value={sessionId} />
+            <input type="hidden" name="questionId" value={nextQuestion.id} />
+            <input type="hidden" name="type" value="EXPLAIN" />
+
+            <label style={{ display: "grid", gap: 6 }}>
+              Explain your reasoning
+              <textarea
+                name="explainInput"
+                rows={6}
+                placeholder="Explain why your approach works using concepts from the lesson."
+                style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd", resize: "vertical" }}
+              />
+            </label>
+
+            <button type="submit" style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}>
+              Submit explanation
+            </button>
+          </form>
+        )}
       </section>
     </main>
   );
 }
+

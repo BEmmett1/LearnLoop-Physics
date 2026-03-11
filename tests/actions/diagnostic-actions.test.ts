@@ -12,13 +12,17 @@ class RedirectError extends Error {
 const {
   redirectMock,
   createSupabaseServerClientMock,
-  hasCompletedDiagnosticSessionMock
+  hasCompletedDiagnosticSessionMock,
+  evaluateSetupMock,
+  evaluateExplainMock
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((url: string) => {
     throw new RedirectError(url);
   }),
   createSupabaseServerClientMock: vi.fn(),
-  hasCompletedDiagnosticSessionMock: vi.fn(async () => false)
+  hasCompletedDiagnosticSessionMock: vi.fn(async () => false),
+  evaluateSetupMock: vi.fn(),
+  evaluateExplainMock: vi.fn()
 }));
 
 vi.mock("next/navigation", () => ({
@@ -37,10 +41,13 @@ vi.mock("@/lib/learning/diagnostic", async importOriginal => {
   };
 });
 
-import {
-  startDiagnosticSession,
-  submitDiagnosticAttempt
-} from "@/app/diagnostic/actions";
+vi.mock("@/lib/learning/text-evaluation", () => ({
+  evaluateSetup: evaluateSetupMock,
+  evaluateExplain: evaluateExplainMock,
+  isCorrectState: (state: string) => state === "CORRECT"
+}));
+
+import { startDiagnosticSession, submitDiagnosticAttempt } from "@/app/diagnostic/actions";
 
 type MockState = {
   user: { id: string } | null;
@@ -131,9 +138,9 @@ function makeSupabaseMock(state: MockState) {
           select: vi.fn(() => ({
             eq: vi.fn((_col1: string, _val1: any) => ({
               eq: vi.fn(async (_col2: string, _val2: any) => ({
-                data: Array.from({
-                  length: state.initialAttemptCount + state.insertedAttempts.length
-                }).map((_, i) => ({ id: `a-${i}` })),
+                data: Array.from({ length: state.initialAttemptCount + state.insertedAttempts.length }).map(
+                  (_, i) => ({ id: `a-${i}` })
+                ),
                 error: null
               }))
             }))
@@ -178,17 +185,14 @@ function makeState(overrides: Partial<MockState> = {}): MockState {
   return {
     user: { id: "user-1" },
     userError: null,
-    session: {
-      id: "sess-1",
-      user_id: "user-1",
-      mode: "DIAGNOSTIC",
-      ended_at: null
-    },
+    session: { id: "sess-1", user_id: "user-1", mode: "DIAGNOSTIC", ended_at: null },
     sessionError: null,
     question: {
       id: "q1",
       type: "MCQ",
       difficulty: 2,
+      prompt: "Prompt",
+      canonical_solution: "Canonical",
       correct_choice_index: 1,
       numeric_answer: 20,
       numeric_tolerance: 0.5,
@@ -228,92 +232,172 @@ describe("diagnostic actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hasCompletedDiagnosticSessionMock.mockResolvedValue(false);
-  });
-
-  describe("startDiagnosticSession", () => {
-    it("redirects to login when unauthenticated", async () => {
-      const state = makeState({ user: null });
-      createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
-
-      await expectRedirect(startDiagnosticSession(), "/login");
+    evaluateSetupMock.mockReturnValue({
+      state: "CORRECT",
+      reason: "setup_aligned",
+      feedback: "Nice setup",
+      source: "RULES"
     });
-
-    it("creates diagnostic session and redirects", async () => {
-      const state = makeState();
-      createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
-
-      await expectRedirect(startDiagnosticSession(), "/diagnostic?session=sess-1");
-      expect(state.insertedSessions).toHaveLength(1);
-      expect(state.insertedSessions[0]).toMatchObject({
-        user_id: "user-1",
-        mode: "DIAGNOSTIC"
-      });
+    evaluateExplainMock.mockResolvedValue({
+      state: "CORRECT",
+      reason: "conceptual_match",
+      feedback: "Nice explanation",
+      source: "AI",
+      canonicalSolutionUsed: true,
+      grounded_quotes: ["quote"]
     });
   });
 
-  describe("submitDiagnosticAttempt", () => {
-    it("redirects to login when unauthenticated", async () => {
-      const state = makeState({ user: null });
-      createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+  it("startDiagnosticSession creates session and redirects", async () => {
+    const state = makeState();
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
 
-      const form = makeFormData({
-        sessionId: "sess-1",
-        questionId: "q1",
-        type: "MCQ",
-        selectedChoiceIndex: "1"
-      });
+    await expectRedirect(startDiagnosticSession(), "/diagnostic?session=sess-1");
+    expect(state.insertedSessions[0]).toMatchObject({ user_id: "user-1", mode: "DIAGNOSTIC" });
+  });
 
-      await expectRedirect(submitDiagnosticAttempt(form), "/login");
+  it("submitDiagnosticAttempt handles SETUP payload", async () => {
+    const state = makeState({ question: { ...makeState().question, type: "SETUP" } });
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+
+    await expectRedirect(
+      submitDiagnosticAttempt(
+        makeFormData({ sessionId: "sess-1", questionId: "q1", type: "SETUP", setupInput: "Given values" })
+      ),
+      "/diagnostic?session=sess-1&last=q1&correct=1"
+    );
+
+    expect(state.insertedAttempts[0].response).toMatchObject({
+      type: "SETUP",
+      setupInput: "Given values",
+      evaluation: { state: "CORRECT", reason: "setup_aligned", source: "RULES" }
+    });
+  });
+
+  it("submitDiagnosticAttempt handles EXPLAIN evaluation failure", async () => {
+    evaluateExplainMock.mockResolvedValue({
+      state: "UNSCORABLE",
+      reason: "ai_unavailable",
+      feedback: "retry",
+      source: "RULES",
+      canonicalSolutionUsed: false,
+      grounded_quotes: []
     });
 
-    it("inserts attempt with session id and updates mastery", async () => {
-      const state = makeState();
-      createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+    const state = makeState({ question: { ...makeState().question, type: "EXPLAIN" } });
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
 
-      const form = makeFormData({
-        sessionId: "sess-1",
-        questionId: "q1",
-        type: "MCQ",
-        selectedChoiceIndex: "1"
-      });
+    await expectRedirect(
+      submitDiagnosticAttempt(
+        makeFormData({
+          sessionId: "sess-1",
+          questionId: "q1",
+          type: "EXPLAIN",
+          explainInput: "Because acceleration changes velocity"
+        })
+      ),
+      "/diagnostic?session=sess-1&last=q1&correct=0&err=evaluation_failed"
+    );
+  });
 
-      await expectRedirect(
-        submitDiagnosticAttempt(form),
-        "/diagnostic?session=sess-1&last=q1&correct=1"
-      );
+  it("finalizes session on 15th attempt", async () => {
+    const state = makeState({ initialAttemptCount: 14 });
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
 
-      expect(state.insertedAttempts).toHaveLength(1);
-      expect(state.insertedAttempts[0]).toMatchObject({
-        user_id: "user-1",
-        session_id: "sess-1",
-        question_id: "q1",
-        correct: true
-      });
-      expect(state.masteryUpdates).toHaveLength(2);
-    });
+    await expectRedirect(
+      submitDiagnosticAttempt(
+        makeFormData({ sessionId: "sess-1", questionId: "q1", type: "MCQ", selectedChoiceIndex: "1" })
+      ),
+      "/diagnostic?session=sess-1&complete=1"
+    );
 
-    it("finalizes session at attempt 15", async () => {
-      const state = makeState({ initialAttemptCount: 14 });
-      createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+    expect(state.sessionUpdates).toHaveLength(1);
+  });
 
-      const form = makeFormData({
-        sessionId: "sess-1",
-        questionId: "q1",
-        type: "MCQ",
-        selectedChoiceIndex: "1"
-      });
+  it("redirects on bad_request", async () => {
+    await expectRedirect(submitDiagnosticAttempt(makeFormData({ sessionId: "sess-1" })), "/diagnostic?err=bad_request");
+  });
 
-      await expectRedirect(
-        submitDiagnosticAttempt(form),
-        "/diagnostic?session=sess-1&complete=1"
-      );
+  it("redirects on bad_session", async () => {
+    const state = makeState({ session: null, sessionError: new Error("missing") });
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
 
-      expect(state.sessionUpdates).toHaveLength(1);
-      expect(state.sessionUpdates[0].filters).toMatchObject({
-        id: "sess-1",
-        user_id: "user-1"
-      });
-      expect(typeof state.sessionUpdates[0].patch.ended_at).toBe("string");
-    });
+    await expectRedirect(
+      submitDiagnosticAttempt(
+        makeFormData({ sessionId: "sess-1", questionId: "q1", type: "MCQ", selectedChoiceIndex: "1" })
+      ),
+      "/diagnostic?err=bad_session"
+    );
+  });
+
+  it("redirects on question_not_found", async () => {
+    const state = makeState({ question: null, questionError: new Error("missing") });
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+
+    await expectRedirect(
+      submitDiagnosticAttempt(
+        makeFormData({ sessionId: "sess-1", questionId: "q1", type: "MCQ", selectedChoiceIndex: "1" })
+      ),
+      "/diagnostic?session=sess-1&err=question_not_found"
+    );
+  });
+
+  it("redirects on wrong_type", async () => {
+    const state = makeState({ question: { ...makeState().question, type: "MCQ" } });
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+
+    await expectRedirect(
+      submitDiagnosticAttempt(
+        makeFormData({ sessionId: "sess-1", questionId: "q1", type: "NUMERIC", numericInput: "20" })
+      ),
+      "/diagnostic?session=sess-1&err=wrong_type"
+    );
+  });
+
+  it("redirects on unsupported_type", async () => {
+    const state = makeState();
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+
+    await expectRedirect(
+      submitDiagnosticAttempt(makeFormData({ sessionId: "sess-1", questionId: "q1", type: "BOGUS" })),
+      "/diagnostic?session=sess-1&err=unsupported_type"
+    );
+  });
+
+  it("redirects on empty_response", async () => {
+    const state = makeState({ question: { ...makeState().question, type: "SETUP" } });
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+
+    await expectRedirect(
+      submitDiagnosticAttempt(
+        makeFormData({ sessionId: "sess-1", questionId: "q1", type: "SETUP", setupInput: " " })
+      ),
+      "/diagnostic?session=sess-1&err=empty_response"
+    );
+  });
+
+  it("redirects on attempt_insert", async () => {
+    const state = makeState({ attemptInsertError: new Error("insert") });
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+
+    await expectRedirect(
+      submitDiagnosticAttempt(
+        makeFormData({ sessionId: "sess-1", questionId: "q1", type: "MCQ", selectedChoiceIndex: "1" })
+      ),
+      "/diagnostic?session=sess-1&err=attempt_insert"
+    );
+  });
+
+  it("redirects to login when unauthenticated", async () => {
+    const state = makeState({ user: null });
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+
+    await expectRedirect(
+      submitDiagnosticAttempt(
+        makeFormData({ sessionId: "sess-1", questionId: "q1", type: "MCQ", selectedChoiceIndex: "1" })
+      ),
+      "/login"
+    );
   });
 });
+

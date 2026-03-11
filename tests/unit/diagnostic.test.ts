@@ -34,12 +34,13 @@ describe("updateMasteryScoreWithDifficulty", () => {
 });
 
 describe("selectDiagnosticQuestions", () => {
-  it("returns up to 15 unique MCQ/NUMERIC questions with mixed difficulty when available", () => {
+  it("returns up to 15 unique questions with mixed difficulty when available", () => {
+    const types = ["MCQ", "NUMERIC", "SETUP", "EXPLAIN"] as const;
     const questions = Array.from({ length: 18 }).map((_, idx) => {
       const difficulty = ((idx % 3) + 1) as 1 | 2 | 3;
       return {
         id: `q-${idx + 1}`,
-        type: idx % 2 === 0 ? "MCQ" : "NUMERIC",
+        type: types[idx % types.length],
         difficulty,
         micro_skill_ids: [`MS-${(idx % 6) + 1}`]
       };
@@ -56,22 +57,15 @@ describe("selectDiagnosticQuestions", () => {
     expect(difficulties.has(3)).toBe(true);
   });
 
-  it("ignores unsupported question types", () => {
+  it("returns all supported types", () => {
     const selected = selectDiagnosticQuestions([
-      {
-        id: "q-1",
-        type: "SETUP",
-        difficulty: 1,
-        micro_skill_ids: ["MS-1"]
-      },
-      {
-        id: "q-2",
-        type: "EXPLAIN",
-        difficulty: 2,
-        micro_skill_ids: ["MS-2"]
-      }
+      { id: "q-1", type: "SETUP", difficulty: 1, micro_skill_ids: ["MS-1"] },
+      { id: "q-2", type: "EXPLAIN", difficulty: 2, micro_skill_ids: ["MS-2"] },
+      { id: "q-3", type: "MCQ", difficulty: 3, micro_skill_ids: ["MS-3"] },
+      { id: "q-4", type: "NUMERIC", difficulty: 1, micro_skill_ids: ["MS-4"] }
     ] as any[]);
 
-    expect(selected).toHaveLength(0);
+    expect(selected.map(q => q.type).sort()).toEqual(["EXPLAIN", "MCQ", "NUMERIC", "SETUP"]);
   });
 });
+

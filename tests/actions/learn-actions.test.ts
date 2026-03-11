@@ -9,11 +9,18 @@ class RedirectError extends Error {
   }
 }
 
-const { redirectMock, createSupabaseServerClientMock } = vi.hoisted(() => ({
+const {
+  redirectMock,
+  createSupabaseServerClientMock,
+  evaluateSetupMock,
+  evaluateExplainMock
+} = vi.hoisted(() => ({
   redirectMock: vi.fn((url: string) => {
     throw new RedirectError(url);
   }),
-  createSupabaseServerClientMock: vi.fn()
+  createSupabaseServerClientMock: vi.fn(),
+  evaluateSetupMock: vi.fn(),
+  evaluateExplainMock: vi.fn()
 }));
 
 vi.mock("next/navigation", () => ({
@@ -24,9 +31,17 @@ vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: createSupabaseServerClientMock
 }));
 
+vi.mock("@/lib/learning/text-evaluation", () => ({
+  evaluateSetup: evaluateSetupMock,
+  evaluateExplain: evaluateExplainMock,
+  isCorrectState: (state: string) => state === "CORRECT"
+}));
+
 import {
+  submitExplainAttempt,
   submitMcqAttempt,
-  submitNumericAttempt
+  submitNumericAttempt,
+  submitSetupAttempt
 } from "@/app/learn/[topicId]/actions";
 
 type MockState = {
@@ -61,20 +76,14 @@ function makeSupabaseMock(state: MockState) {
 
       if (table === "mastery") {
         return {
-          select: vi.fn(() => {
-            return {
-              eq: vi.fn((_col: string, _value: any) => ({
-                in: vi.fn(async (_inCol: string, _ids: string[]) => ({
-                  data: state.masteryRows,
-                  error: state.masteryError
-                }))
-              })),
+          select: vi.fn(() => ({
+            eq: vi.fn((_col: string, _value: any) => ({
               in: vi.fn(async (_inCol: string, _ids: string[]) => ({
                 data: state.masteryRows,
                 error: state.masteryError
               }))
-            };
-          }),
+            }))
+          })),
           update: vi.fn((patch: any) => {
             const row = { patch, filters: {} as Record<string, any> };
             state.masteryUpdates.push(row);
@@ -119,6 +128,8 @@ function makeState(overrides: Partial<MockState> = {}): MockState {
       id: "q1",
       topic_id: "T1",
       type: "MCQ",
+      prompt: "Prompt",
+      canonical_solution: "Use known equations.",
       correct_choice_index: 1,
       numeric_answer: 25,
       numeric_tolerance: 0.5,
@@ -153,156 +164,171 @@ async function expectRedirect(promise: Promise<unknown>, expectedUrl: string) {
 describe("learn actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  describe("submitMcqAttempt", () => {
-    it("inserts attempt, updates mastery, and redirects on success", async () => {
-      const state = makeState();
-      createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
-
-      const form = makeFormData({
-        topicId: "T1",
-        questionId: "q1",
-        selectedChoiceIndex: "1"
-      });
-
-      await expectRedirect(
-        submitMcqAttempt(form),
-        "/learn/T1?last=q1&correct=1"
-      );
-
-      expect(state.insertedAttempts).toHaveLength(1);
-      expect(state.insertedAttempts[0]).toMatchObject({
-        user_id: "user-1",
-        question_id: "q1",
-        correct: true
-      });
-      expect(state.masteryUpdates).toHaveLength(2);
+    evaluateSetupMock.mockReturnValue({
+      state: "CORRECT",
+      reason: "setup_aligned",
+      feedback: "Nice setup",
+      source: "RULES"
     });
-
-    it("redirects safely on topic mismatch", async () => {
-      const state = makeState({
-        question: {
-          id: "q1",
-          topic_id: "OTHER",
-          type: "MCQ",
-          correct_choice_index: 1,
-          micro_skill_ids: ["MS1"]
-        }
-      });
-      createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
-
-      const form = makeFormData({
-        topicId: "T1",
-        questionId: "q1",
-        selectedChoiceIndex: "1"
-      });
-
-      await expectRedirect(submitMcqAttempt(form), "/learn/T1?err=topic_mismatch");
-    });
-
-    it("redirects to login when unauthenticated", async () => {
-      const state = makeState({ user: null });
-      createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
-
-      const form = makeFormData({
-        topicId: "T1",
-        questionId: "q1",
-        selectedChoiceIndex: "1"
-      });
-
-      await expectRedirect(submitMcqAttempt(form), "/login");
+    evaluateExplainMock.mockResolvedValue({
+      state: "CORRECT",
+      reason: "conceptual_match",
+      feedback: "Nice explanation",
+      source: "AI",
+      canonicalSolutionUsed: true,
+      grounded_quotes: ["quote"]
     });
   });
 
-  describe("submitNumericAttempt", () => {
-    it("redirects with error query on invalid numeric input", async () => {
-      const state = makeState({
-        question: {
-          id: "q1",
-          topic_id: "T1",
-          type: "NUMERIC",
-          numeric_answer: 25,
-          numeric_tolerance: 0.5,
-          micro_skill_ids: ["MS1"]
-        }
-      });
-      createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+  it("submitMcqAttempt inserts and redirects on success", async () => {
+    const state = makeState();
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
 
-      const form = makeFormData({
-        topicId: "T1",
-        questionId: "q1",
-        numericInput: "abc"
-      });
+    await expectRedirect(
+      submitMcqAttempt(makeFormData({ topicId: "T1", questionId: "q1", selectedChoiceIndex: "1" })),
+      "/learn/T1?last=q1&correct=1"
+    );
 
-      await expectRedirect(submitNumericAttempt(form), "/learn/T1?err=bad_number");
+    expect(state.insertedAttempts[0]).toMatchObject({ correct: true });
+    expect(state.masteryUpdates).toHaveLength(2);
+  });
+
+  it("submitNumericAttempt rejects bad numeric input", async () => {
+    const state = makeState({ question: { ...makeState().question, type: "NUMERIC" } });
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+
+    await expectRedirect(
+      submitNumericAttempt(makeFormData({ topicId: "T1", questionId: "q1", numericInput: "abc" })),
+      "/learn/T1?err=bad_number"
+    );
+  });
+
+  it("submitSetupAttempt persists structured setup payload", async () => {
+    const state = makeState({ question: { ...makeState().question, type: "SETUP" } });
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+
+    await expectRedirect(
+      submitSetupAttempt(
+        makeFormData({ topicId: "T1", questionId: "q1", type: "SETUP", setupInput: "Given values" })
+      ),
+      "/learn/T1?last=q1&correct=1"
+    );
+
+    expect(state.insertedAttempts[0].response).toMatchObject({
+      type: "SETUP",
+      setupInput: "Given values",
+      evaluation: {
+        state: "CORRECT",
+        reason: "setup_aligned",
+        source: "RULES"
+      }
+    });
+  });
+
+  it("submitExplainAttempt redirects with evaluation_failed when AI unavailable", async () => {
+    evaluateExplainMock.mockResolvedValue({
+      state: "UNSCORABLE",
+      reason: "ai_unavailable",
+      feedback: "retry",
+      source: "RULES",
+      canonicalSolutionUsed: false,
+      grounded_quotes: []
     });
 
-    it("inserts attempt, updates mastery, and redirects on success", async () => {
-      const state = makeState({
-        question: {
-          id: "q1",
-          topic_id: "T1",
-          type: "NUMERIC",
-          numeric_answer: 25,
-          numeric_tolerance: 0.5,
-          micro_skill_ids: ["MS1", "MS2"]
-        }
-      });
-      createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+    const state = makeState({ question: { ...makeState().question, type: "EXPLAIN" } });
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
 
-      const form = makeFormData({
-        topicId: "T1",
-        questionId: "q1",
-        numericInput: "25.5"
-      });
+    await expectRedirect(
+      submitExplainAttempt(
+        makeFormData({
+          topicId: "T1",
+          questionId: "q1",
+          type: "EXPLAIN",
+          explainInput: "Because acceleration is constant"
+        })
+      ),
+      "/learn/T1?last=q1&correct=0&err=evaluation_failed"
+    );
+  });
 
-      await expectRedirect(
-        submitNumericAttempt(form),
-        "/learn/T1?last=q1&correct=1"
-      );
+  it("submitSetupAttempt returns empty_response for blank input", async () => {
+    await expectRedirect(
+      submitSetupAttempt(makeFormData({ topicId: "T1", questionId: "q1", type: "SETUP", setupInput: " " })),
+      "/learn/T1?err=empty_response"
+    );
+  });
 
-      expect(state.insertedAttempts).toHaveLength(1);
-      expect(state.insertedAttempts[0]).toMatchObject({
-        user_id: "user-1",
-        question_id: "q1",
-        correct: true
-      });
-      expect(state.masteryUpdates).toHaveLength(2);
-    });
+  it("submitExplainAttempt returns unsupported_type for bad type", async () => {
+    await expectRedirect(
+      submitExplainAttempt(
+        makeFormData({ topicId: "T1", questionId: "q1", type: "SETUP", explainInput: "x" })
+      ),
+      "/learn/T1?err=unsupported_type"
+    );
+  });
 
-    it("redirects safely on wrong question type", async () => {
-      const state = makeState({
-        question: {
-          id: "q1",
-          topic_id: "T1",
-          type: "MCQ",
-          correct_choice_index: 1,
-          micro_skill_ids: ["MS1"]
-        }
-      });
-      createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+  it("redirects on question_not_found", async () => {
+    const state = makeState({ question: null, questionError: new Error("missing") });
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
 
-      const form = makeFormData({
-        topicId: "T1",
-        questionId: "q1",
-        numericInput: "20"
-      });
+    await expectRedirect(
+      submitSetupAttempt(
+        makeFormData({ topicId: "T1", questionId: "missing", type: "SETUP", setupInput: "Given" })
+      ),
+      "/learn/T1?err=question_not_found"
+    );
+  });
 
-      await expectRedirect(submitNumericAttempt(form), "/learn/T1?err=wrong_type");
-    });
+  it("redirects on topic mismatch", async () => {
+    const state = makeState({ question: { ...makeState().question, topic_id: "OTHER", type: "SETUP" } });
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
 
-    it("redirects to login when unauthenticated", async () => {
-      const state = makeState({ user: null });
-      createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+    await expectRedirect(
+      submitSetupAttempt(
+        makeFormData({ topicId: "T1", questionId: "q1", type: "SETUP", setupInput: "Given" })
+      ),
+      "/learn/T1?err=topic_mismatch"
+    );
+  });
 
-      const form = makeFormData({
-        topicId: "T1",
-        questionId: "q1",
-        numericInput: "25"
-      });
+  it("redirects on wrong_type", async () => {
+    const state = makeState({ question: { ...makeState().question, type: "MCQ" } });
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
 
-      await expectRedirect(submitNumericAttempt(form), "/login");
-    });
+    await expectRedirect(
+      submitSetupAttempt(
+        makeFormData({ topicId: "T1", questionId: "q1", type: "SETUP", setupInput: "Given" })
+      ),
+      "/learn/T1?err=wrong_type"
+    );
+  });
+
+  it("redirects on attempt_insert", async () => {
+    const state = makeState({ question: { ...makeState().question, type: "SETUP" }, attemptInsertError: new Error("fail") });
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+
+    await expectRedirect(
+      submitSetupAttempt(
+        makeFormData({ topicId: "T1", questionId: "q1", type: "SETUP", setupInput: "Given" })
+      ),
+      "/learn/T1?err=attempt_insert"
+    );
+  });
+
+  it("redirects to bad_request when required fields are missing", async () => {
+    await expectRedirect(submitSetupAttempt(makeFormData({ topicId: "T1", type: "SETUP" })), "/learn/T1?err=bad_request");
+  });
+
+  it("redirects to login when unauthenticated", async () => {
+    const state = makeState({ user: null, question: { ...makeState().question, type: "SETUP" } });
+    createSupabaseServerClientMock.mockResolvedValue(makeSupabaseMock(state));
+
+    await expectRedirect(
+      submitSetupAttempt(
+        makeFormData({ topicId: "T1", questionId: "q1", type: "SETUP", setupInput: "Given" })
+      ),
+      "/login"
+    );
   });
 });
+

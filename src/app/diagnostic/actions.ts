@@ -2,19 +2,52 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  gradeMcqAnswer,
-  gradeNumericAnswer
-} from "@/lib/learning/grading";
+import { gradeMcqAnswer, gradeNumericAnswer } from "@/lib/learning/grading";
 import {
   DIAGNOSTIC_QUESTION_LIMIT,
   hasCompletedDiagnosticSession,
   updateMasteryScoreWithDifficulty
 } from "@/lib/learning/diagnostic";
+import { evaluateExplain, evaluateSetup, isCorrectState } from "@/lib/learning/text-evaluation";
 
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string");
+}
+
+type DiagnosticQuestionRow = {
+  id: string;
+  type: "MCQ" | "NUMERIC" | "SETUP" | "EXPLAIN";
+  difficulty: number | null;
+  prompt: string | null;
+  canonical_solution: string | null;
+  correct_choice_index: number | null;
+  numeric_answer: number | null;
+  numeric_tolerance: number | null;
+  micro_skill_ids: unknown;
+};
+
+function diagnosticErr(sessionId: string, err: string) {
+  return `/diagnostic?session=${encodeURIComponent(sessionId)}&err=${encodeURIComponent(err)}`;
+}
+
+function buildDiagnosticProgressRedirect(
+  sessionId: string,
+  questionId: string,
+  correct: boolean,
+  errCode?: string
+) {
+  const params = new URLSearchParams({
+    session: sessionId,
+    last: questionId,
+    correct: correct ? "1" : "0"
+  });
+
+  if (errCode) {
+    params.set("err", errCode);
+  }
+
+  return `/diagnostic?${params.toString()}`;
 }
 
 export async function startDiagnosticSession() {
@@ -78,45 +111,106 @@ export async function submitDiagnosticAttempt(formData: FormData) {
 
   const { data: question, error: questionErr } = await supabase
     .from("questions")
-    .select("id, type, difficulty, correct_choice_index, numeric_answer, numeric_tolerance, micro_skill_ids")
+    .select(
+      "id, type, difficulty, prompt, canonical_solution, correct_choice_index, numeric_answer, numeric_tolerance, micro_skill_ids"
+    )
     .eq("id", questionId)
     .single();
 
   if (questionErr || !question) {
-    redirect(`/diagnostic?session=${encodeURIComponent(sessionId)}&err=question_not_found`);
+    redirect(diagnosticErr(sessionId, "question_not_found"));
   }
+
+  const q = question as DiagnosticQuestionRow;
 
   let correct = false;
   let response: Record<string, unknown> = {};
+  let evaluationFailed = false;
 
   if (type === "MCQ") {
-    if (question.type !== "MCQ") {
-      redirect(`/diagnostic?session=${encodeURIComponent(sessionId)}&err=wrong_type`);
+    if (q.type !== "MCQ") {
+      redirect(diagnosticErr(sessionId, "wrong_type"));
     }
 
     const selectedStr = String(formData.get("selectedChoiceIndex") ?? "");
     const selectedChoiceIndex = selectedStr === "" ? null : Number(selectedStr);
-    correct = gradeMcqAnswer(selectedChoiceIndex, question.correct_choice_index as number | null);
+    correct = gradeMcqAnswer(selectedChoiceIndex, q.correct_choice_index);
     response = { selectedChoiceIndex };
   } else if (type === "NUMERIC") {
-    if (question.type !== "NUMERIC") {
-      redirect(`/diagnostic?session=${encodeURIComponent(sessionId)}&err=wrong_type`);
+    if (q.type !== "NUMERIC") {
+      redirect(diagnosticErr(sessionId, "wrong_type"));
     }
 
     const inputStr = String(formData.get("numericInput") ?? "").trim();
     const input = inputStr === "" ? null : Number(inputStr);
     if (inputStr !== "" && Number.isNaN(input)) {
-      redirect(`/diagnostic?session=${encodeURIComponent(sessionId)}&err=bad_number`);
+      redirect(diagnosticErr(sessionId, "bad_number"));
     }
 
-    correct = gradeNumericAnswer(
-      input,
-      question.numeric_answer as number | null,
-      question.numeric_tolerance as number | null
-    );
+    correct = gradeNumericAnswer(input, q.numeric_answer, q.numeric_tolerance);
     response = { numericInput: inputStr };
+  } else if (type === "SETUP") {
+    if (q.type !== "SETUP") {
+      redirect(diagnosticErr(sessionId, "wrong_type"));
+    }
+
+    const setupInput = String(formData.get("setupInput") ?? "").trim();
+    if (!setupInput) {
+      redirect(diagnosticErr(sessionId, "empty_response"));
+    }
+
+    const evaluation = evaluateSetup({
+      prompt: q.prompt ?? "",
+      canonicalSolution: q.canonical_solution ?? "",
+      setupInput
+    });
+    correct = isCorrectState(evaluation.state);
+    evaluationFailed = evaluation.state === "UNSCORABLE" && evaluation.reason !== "empty_response";
+
+    response = {
+      type: "SETUP",
+      setupInput,
+      evaluation: {
+        state: evaluation.state,
+        reason: evaluation.reason,
+        feedback: evaluation.feedback,
+        source: evaluation.source
+      }
+    };
+  } else if (type === "EXPLAIN") {
+    if (q.type !== "EXPLAIN") {
+      redirect(diagnosticErr(sessionId, "wrong_type"));
+    }
+
+    const explainInput = String(formData.get("explainInput") ?? "").trim();
+    if (!explainInput) {
+      redirect(diagnosticErr(sessionId, "empty_response"));
+    }
+
+    const evaluation = await evaluateExplain({
+      prompt: q.prompt ?? "",
+      canonicalSolution: q.canonical_solution ?? "",
+      explainInput
+    });
+    correct = isCorrectState(evaluation.state);
+    evaluationFailed = evaluation.reason === "ai_unavailable";
+
+    response = {
+      type: "EXPLAIN",
+      explainInput,
+      evaluation: {
+        state: evaluation.state,
+        reason: evaluation.reason,
+        feedback: evaluation.feedback,
+        source: evaluation.source
+      },
+      grounding: {
+        canonicalSolutionUsed: !!evaluation.canonicalSolutionUsed,
+        grounded_quotes: evaluation.grounded_quotes ?? []
+      }
+    };
   } else {
-    redirect(`/diagnostic?session=${encodeURIComponent(sessionId)}&err=unsupported_type`);
+    redirect(diagnosticErr(sessionId, "unsupported_type"));
   }
 
   const { error: attemptErr } = await supabase.from("attempts").insert({
@@ -128,10 +222,10 @@ export async function submitDiagnosticAttempt(formData: FormData) {
   } as any);
 
   if (attemptErr) {
-    redirect(`/diagnostic?session=${encodeURIComponent(sessionId)}&err=attempt_insert`);
+    redirect(diagnosticErr(sessionId, "attempt_insert"));
   }
 
-  const microSkillIds = asStringArray(question.micro_skill_ids);
+  const microSkillIds = asStringArray(q.micro_skill_ids);
   if (microSkillIds.length > 0) {
     const { data: masteryRows, error: masteryErr } = await supabase
       .from("mastery")
@@ -145,7 +239,7 @@ export async function submitDiagnosticAttempt(formData: FormData) {
         const newScore = updateMasteryScoreWithDifficulty(
           oldScore,
           correct,
-          Number(question.difficulty ?? 1)
+          Number(q.difficulty ?? 1)
         );
 
         await supabase
@@ -172,12 +266,20 @@ export async function submitDiagnosticAttempt(formData: FormData) {
       .eq("id", sessionId)
       .eq("user_id", userData.user.id);
 
-    redirect(`/diagnostic?session=${encodeURIComponent(sessionId)}&complete=1`);
+    const params = new URLSearchParams({ session: sessionId, complete: "1" });
+    if (evaluationFailed) {
+      params.set("err", "evaluation_failed");
+    }
+    redirect(`/diagnostic?${params.toString()}`);
   }
 
   redirect(
-    `/diagnostic?session=${encodeURIComponent(sessionId)}&last=${encodeURIComponent(
-      questionId
-    )}&correct=${correct ? "1" : "0"}`
+    buildDiagnosticProgressRedirect(
+      sessionId,
+      questionId,
+      correct,
+      evaluationFailed ? "evaluation_failed" : undefined
+    )
   );
 }
+

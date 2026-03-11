@@ -1,5 +1,6 @@
 {
   "devDependencies": {
+    "@playwright/test": "^1.54.2",
     "@vitest/coverage-v8": "^3.2.4",
     "@types/react": "^19.2.9",
     "@types/react-dom": "^19.2.3",
@@ -16,7 +17,8 @@
     "verify:db": "tsx scripts/verify-db.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
@@ -27,3 +29,4 @@
     "react-dom": "^19.2.3"
   }
 }
+
