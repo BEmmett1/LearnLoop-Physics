@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { hasCompletedDiagnosticSession } from "@/lib/learning/diagnostic";
 import { submitMcqAttempt, submitNumericAttempt } from "./actions";
-
 
 type TopicRow = {
   id: string;
@@ -49,10 +49,16 @@ export default async function LearnTopicPage({
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user) redirect("/login");
 
-  // Ensure profile + mastery rows exist
   await supabase.rpc("init_user_progress");
 
-  // Load topic
+  const hasCompletedDiagnostic = await hasCompletedDiagnosticSession(
+    supabase,
+    userData.user.id
+  );
+  if (!hasCompletedDiagnostic) {
+    redirect("/diagnostic");
+  }
+
   const { data: topic, error: topicErr } = await supabase
     .from("topics")
     .select("id,name,order,prerequisite_topic_ids")
@@ -61,7 +67,6 @@ export default async function LearnTopicPage({
 
   if (topicErr || !topic) redirect("/dashboard");
 
-  // Enforce unlock logic (same as dashboard)
   const { data: topics } = await supabase
     .from("topics")
     .select("id,order,prerequisite_topic_ids")
@@ -88,7 +93,7 @@ export default async function LearnTopicPage({
     for (const s of skills) set.add(s);
   }
 
-  const topicProgress = new Map<string, number>(); // 0..1
+  const topicProgress = new Map<string, number>();
   for (const t of (topics ?? []) as any[]) {
     const set = topicSkillSets.get(t.id) ?? new Set<string>();
     const skills = Array.from(set);
@@ -111,7 +116,6 @@ export default async function LearnTopicPage({
     redirect("/dashboard");
   }
 
-  // Load questions for this topic
   const { data: questions, error: questionsErr } = await supabase
     .from("questions")
     .select("id,topic_id,type,difficulty,prompt,choices,correct_choice_index,correct_answer_text,canonical_solution,micro_skill_ids")
@@ -129,14 +133,12 @@ export default async function LearnTopicPage({
     );
   }
 
-  // Load attempts for these questions (RLS ensures only this user's attempts return)
   const questionIds = questions.map(q => q.id);
   const { data: attempts } = await supabase
     .from("attempts")
     .select("question_id, correct, created_at")
     .in("question_id", questionIds);
 
-  // Build attempt count per question
   const attemptCount = new Map<string, number>();
   for (const q of questions) {
     attemptCount.set(q.id, 0);
@@ -147,13 +149,9 @@ export default async function LearnTopicPage({
     attemptCount.set(qid, (attemptCount.get(qid) ?? 0) + 1);
   }
 
-  // Pick next question:
-  // Adaptive picker:
-  // Score question by weakest micro-skill mastery in that question.
-  // Lower score means learner is weaker, so ask that question next.
   function getQuestionWeaknessScore(q: QuestionRow) {
     const skills = asStringArray(q.micro_skill_ids);
-    if (skills.length === 0) return 0.5; // neutral if no skills tagged
+    if (skills.length === 0) return 0.5;
     let min = 1;
     for (const s of skills) {
       const v = masteryMap.get(s) ?? 0.3;
@@ -167,12 +165,10 @@ export default async function LearnTopicPage({
     questionWeakness.set(q.id, getQuestionWeaknessScore(q as any));
   }
 
-  // Pick question with lowest weakness score (weakest skill),
-  // then fewest attempts, then lower difficulty.
   const next = [...questions].sort((a, b) => {
     const ca = attemptCount.get(a.id) ?? 0;
     const cb = attemptCount.get(b.id) ?? 0;
-    if (ca !== cb) return ca - cb; // unseen first
+    if (ca !== cb) return ca - cb;
 
     const wa = questionWeakness.get(a.id) ?? 0.5;
     const wb = questionWeakness.get(b.id) ?? 0.5;
@@ -180,7 +176,6 @@ export default async function LearnTopicPage({
 
     return (a.difficulty ?? 1) - (b.difficulty ?? 1);
   })[0] as QuestionRow;
-
 
   const lastCorrect = String(sp.correct ?? "");
   const showFeedback = lastCorrect === "1" || lastCorrect === "0";
@@ -222,63 +217,62 @@ export default async function LearnTopicPage({
         )}
 
         {next.type === "MCQ" && (
-  <form action={submitMcqAttempt} style={{ marginTop: 14, display: "grid", gap: 10 }}>
-    <input type="hidden" name="topicId" value={topicId} />
-    <input type="hidden" name="questionId" value={next.id} />
+          <form action={submitMcqAttempt} style={{ marginTop: 14, display: "grid", gap: 10 }}>
+            <input type="hidden" name="topicId" value={topicId} />
+            <input type="hidden" name="questionId" value={next.id} />
 
-    <fieldset style={{ border: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
-      {(Array.isArray(next.choices) ? next.choices : []).map((c: string, idx: number) => (
-        <label
-          key={idx}
-          style={{
-            display: "flex",
-            gap: 10,
-            alignItems: "flex-start",
-            border: "1px solid #ddd",
-            borderRadius: 10,
-            padding: 12,
-            cursor: "pointer"
-          }}
-        >
-          <input type="radio" name="selectedChoiceIndex" value={String(idx)} />
-          <span>{c}</span>
-        </label>
-      ))}
-    </fieldset>
+            <fieldset style={{ border: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
+              {(Array.isArray(next.choices) ? next.choices : []).map((c: string, idx: number) => (
+                <label
+                  key={idx}
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "flex-start",
+                    border: "1px solid #ddd",
+                    borderRadius: 10,
+                    padding: 12,
+                    cursor: "pointer"
+                  }}
+                >
+                  <input type="radio" name="selectedChoiceIndex" value={String(idx)} />
+                  <span>{c}</span>
+                </label>
+              ))}
+            </fieldset>
 
-    <button type="submit" style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}>
-      Submit answer
-    </button>
-  </form>
-)}
+            <button type="submit" style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}>
+              Submit answer
+            </button>
+          </form>
+        )}
 
-{next.type === "NUMERIC" && (
-  <form action={submitNumericAttempt} style={{ marginTop: 14, display: "grid", gap: 10 }}>
-    <input type="hidden" name="topicId" value={topicId} />
-    <input type="hidden" name="questionId" value={next.id} />
+        {next.type === "NUMERIC" && (
+          <form action={submitNumericAttempt} style={{ marginTop: 14, display: "grid", gap: 10 }}>
+            <input type="hidden" name="topicId" value={topicId} />
+            <input type="hidden" name="questionId" value={next.id} />
 
-    <label style={{ display: "grid", gap: 6 }}>
-      Your answer (number)
-      <input
-        name="numericInput"
-        inputMode="decimal"
-        placeholder="Example: 25"
-        style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
-      />
-    </label>
+            <label style={{ display: "grid", gap: 6 }}>
+              Your answer (number)
+              <input
+                name="numericInput"
+                inputMode="decimal"
+                placeholder="Example: 25"
+                style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
+              />
+            </label>
 
-    <button type="submit" style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}>
-      Submit answer
-    </button>
-  </form>
-)}
+            <button type="submit" style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}>
+              Submit answer
+            </button>
+          </form>
+        )}
 
-{next.type !== "MCQ" && next.type !== "NUMERIC" && (
-  <div style={{ marginTop: 12, color: "#666" }}>
-    This question type is {next.type}. Next we will implement it.
-  </div>
-)}
-
+        {next.type !== "MCQ" && next.type !== "NUMERIC" && (
+          <div style={{ marginTop: 12, color: "#666" }}>
+            This question type is {next.type}. Next we will implement it.
+          </div>
+        )}
 
         <details style={{ marginTop: 14 }}>
           <summary style={{ cursor: "pointer" }}>Show solution (for debugging)</summary>

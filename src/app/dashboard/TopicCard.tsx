@@ -3,11 +3,21 @@ type Props = {
   name: string;
   order: number;
   unlocked: boolean;
-  progressPct: number; // 0..100
+  progressPct: number;
   prereqIds: string[];
+  href?: string;
+  ctaLabel?: string;
 };
 
-export function TopicCard({ id, name, order, unlocked, progressPct, prereqIds }: Props) {
+export function TopicCard({
+  name,
+  order,
+  unlocked,
+  progressPct,
+  prereqIds,
+  href,
+  ctaLabel
+}: Props) {
   const statusText = unlocked ? "Unlocked" : "Locked";
   const statusColor = unlocked ? "#0a7" : "#888";
 
@@ -46,14 +56,12 @@ export function TopicCard({ id, name, order, unlocked, progressPct, prereqIds }:
       </div>
 
       {!unlocked && prereqIds.length > 0 && (
-        <div style={{ fontSize: 12, color: "#666" }}>
-          Prereqs: {prereqIds.join(", ")}
-        </div>
+        <div style={{ fontSize: 12, color: "#666" }}>Prereqs: {prereqIds.join(", ")}</div>
       )}
 
-      {unlocked && (
+      {unlocked && href && (
         <a
-          href={`/learn/${id}`}
+          href={href}
           style={{
             display: "inline-block",
             padding: "10px 12px",
@@ -64,7 +72,7 @@ export function TopicCard({ id, name, order, unlocked, progressPct, prereqIds }:
             width: "fit-content"
           }}
         >
-          Start or continue
+          {ctaLabel ?? "Start or continue"}
         </a>
       )}
     </div>
