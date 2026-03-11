@@ -32,7 +32,7 @@ Diagnostic uses the same proportional structure with a difficulty multiplier:
   - Incorrect: `new = clamp01(s - effectiveDelta * s)`
 
 ## Diagnostic Question Selection (Current)
-- Eligible pool is currently `MCQ` and `NUMERIC` only.
+- Eligible pool includes `MCQ`, `NUMERIC`, `SETUP`, and `EXPLAIN`.
 - Target count is `15` questions (or fewer if the pool is smaller).
 - Selection loop:
 1. Cycle preferred difficulty in order `1 -> 2 -> 3`.
@@ -49,3 +49,5 @@ Within a topic, the next question is selected by sorting:
 ## Future Algorithms (Not Yet Implemented)
 - Spaced review scheduling.
 - Review-mode session policy.
+
+

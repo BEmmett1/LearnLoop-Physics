@@ -52,7 +52,7 @@ export function selectDiagnosticQuestions(
   limit = DIAGNOSTIC_QUESTION_LIMIT
 ) {
   const eligible = allQuestions
-    .filter(q => q.type === "MCQ" || q.type === "NUMERIC")
+    .filter(q => q.type === "MCQ" || q.type === "NUMERIC" || q.type === "SETUP" || q.type === "EXPLAIN")
     .sort((a, b) => a.id.localeCompare(b.id));
 
   const targetCount = Math.min(limit, eligible.length);
@@ -120,3 +120,5 @@ export async function hasCompletedDiagnosticSession(
 
   return false;
 }
+
+

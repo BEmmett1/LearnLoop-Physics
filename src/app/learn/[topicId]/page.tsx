@@ -1,7 +1,12 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasCompletedDiagnosticSession } from "@/lib/learning/diagnostic";
-import { submitMcqAttempt, submitNumericAttempt } from "./actions";
+import {
+  submitExplainAttempt,
+  submitMcqAttempt,
+  submitNumericAttempt,
+  submitSetupAttempt
+} from "./actions";
 
 type TopicRow = {
   id: string;
@@ -34,6 +39,22 @@ function asStringArray(v: any): string[] {
   return [];
 }
 
+function learnErrorMessage(errCode: string) {
+  const map: Record<string, string> = {
+    bad_request: "The submission was missing required fields. Please try again.",
+    question_not_found: "We could not find that question. Please refresh and try again.",
+    topic_mismatch: "That answer does not match this topic. Please try again.",
+    wrong_type: "That submission type does not match the current question.",
+    unsupported_type: "This question type is not supported for this action.",
+    empty_response: "Please enter an answer before submitting.",
+    bad_number: "Please enter a valid numeric value.",
+    attempt_insert: "We could not save your attempt right now. Please retry.",
+    evaluation_failed: "We saved your attempt, but feedback evaluation was unavailable this time."
+  };
+
+  return map[errCode] ?? "Something went wrong while submitting your answer.";
+}
+
 export default async function LearnTopicPage({
   params,
   searchParams
@@ -51,10 +72,7 @@ export default async function LearnTopicPage({
 
   await supabase.rpc("init_user_progress");
 
-  const hasCompletedDiagnostic = await hasCompletedDiagnosticSession(
-    supabase,
-    userData.user.id
-  );
+  const hasCompletedDiagnostic = await hasCompletedDiagnosticSession(supabase, userData.user.id);
   if (!hasCompletedDiagnostic) {
     redirect("/diagnostic");
   }
@@ -67,18 +85,11 @@ export default async function LearnTopicPage({
 
   if (topicErr || !topic) redirect("/dashboard");
 
-  const { data: topics } = await supabase
-    .from("topics")
-    .select("id,order,prerequisite_topic_ids")
-    .order("order");
+  const { data: topics } = await supabase.from("topics").select("id,order,prerequisite_topic_ids").order("order");
 
-  const { data: mastery } = await supabase
-    .from("mastery")
-    .select("micro_skill_id,mastery_score");
+  const { data: mastery } = await supabase.from("mastery").select("micro_skill_id,mastery_score");
 
-  const { data: questionsAll } = await supabase
-    .from("questions")
-    .select("id,topic_id,micro_skill_ids");
+  const { data: questionsAll } = await supabase.from("questions").select("id,topic_id,micro_skill_ids");
 
   const masteryMap = new Map<string, number>();
   for (const m of (mastery ?? []) as MasteryRow[]) {
@@ -118,7 +129,9 @@ export default async function LearnTopicPage({
 
   const { data: questions, error: questionsErr } = await supabase
     .from("questions")
-    .select("id,topic_id,type,difficulty,prompt,choices,correct_choice_index,correct_answer_text,canonical_solution,micro_skill_ids")
+    .select(
+      "id,topic_id,type,difficulty,prompt,choices,correct_choice_index,correct_answer_text,canonical_solution,micro_skill_ids"
+    )
     .eq("topic_id", topicId)
     .order("difficulty", { ascending: true });
 
@@ -178,6 +191,7 @@ export default async function LearnTopicPage({
   })[0] as QuestionRow;
 
   const lastCorrect = String(sp.correct ?? "");
+  const errCode = String(sp.err ?? "");
   const showFeedback = lastCorrect === "1" || lastCorrect === "0";
 
   return (
@@ -191,6 +205,20 @@ export default async function LearnTopicPage({
         </div>
         <a href="/dashboard">Back to dashboard</a>
       </div>
+
+      {errCode && (
+        <div
+          style={{
+            marginTop: 16,
+            padding: 12,
+            borderRadius: 10,
+            background: "#fff3f3",
+            border: "1px solid #ddd"
+          }}
+        >
+          {learnErrorMessage(errCode)}
+        </div>
+      )}
 
       {showFeedback && (
         <div
@@ -210,16 +238,11 @@ export default async function LearnTopicPage({
         <div style={{ color: "#666", fontSize: 12 }}>Question</div>
         <div style={{ fontSize: 18, fontWeight: 700, marginTop: 6 }}>{next.prompt}</div>
 
-        {next.type !== "MCQ" && (
-          <div style={{ marginTop: 12, color: "#666" }}>
-            This question type is {next.type}. For MVP, we are implementing MCQ first.
-          </div>
-        )}
-
         {next.type === "MCQ" && (
           <form action={submitMcqAttempt} style={{ marginTop: 14, display: "grid", gap: 10 }}>
             <input type="hidden" name="topicId" value={topicId} />
             <input type="hidden" name="questionId" value={next.id} />
+            <input type="hidden" name="type" value="MCQ" />
 
             <fieldset style={{ border: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
               {(Array.isArray(next.choices) ? next.choices : []).map((c: string, idx: number) => (
@@ -251,6 +274,7 @@ export default async function LearnTopicPage({
           <form action={submitNumericAttempt} style={{ marginTop: 14, display: "grid", gap: 10 }}>
             <input type="hidden" name="topicId" value={topicId} />
             <input type="hidden" name="questionId" value={next.id} />
+            <input type="hidden" name="type" value="NUMERIC" />
 
             <label style={{ display: "grid", gap: 6 }}>
               Your answer (number)
@@ -268,10 +292,48 @@ export default async function LearnTopicPage({
           </form>
         )}
 
-        {next.type !== "MCQ" && next.type !== "NUMERIC" && (
-          <div style={{ marginTop: 12, color: "#666" }}>
-            This question type is {next.type}. Next we will implement it.
-          </div>
+        {next.type === "SETUP" && (
+          <form action={submitSetupAttempt} style={{ marginTop: 14, display: "grid", gap: 10 }}>
+            <input type="hidden" name="topicId" value={topicId} />
+            <input type="hidden" name="questionId" value={next.id} />
+            <input type="hidden" name="type" value="SETUP" />
+
+            <label style={{ display: "grid", gap: 6 }}>
+              Write your setup
+              <textarea
+                name="setupInput"
+                rows={6}
+                placeholder="List known values, unknowns, and equations you plan to use."
+                style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd", resize: "vertical" }}
+              />
+            </label>
+
+            <button type="submit" style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}>
+              Submit setup
+            </button>
+          </form>
+        )}
+
+        {next.type === "EXPLAIN" && (
+          <form action={submitExplainAttempt} style={{ marginTop: 14, display: "grid", gap: 10 }}>
+            <input type="hidden" name="topicId" value={topicId} />
+            <input type="hidden" name="questionId" value={next.id} />
+            <input type="hidden" name="type" value="EXPLAIN" />
+
+            <label style={{ display: "grid", gap: 6 }}>
+              Explain your reasoning
+              <textarea
+                name="explainInput"
+                rows={6}
+                placeholder="Explain why your approach works using concepts from the lesson."
+                style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd", resize: "vertical" }}
+              />
+            </label>
+
+            <button type="submit" style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}>
+              Submit explanation
+            </button>
+          </form>
         )}
 
         <details style={{ marginTop: 14 }}>
@@ -291,3 +353,4 @@ export default async function LearnTopicPage({
     </main>
   );
 }
+
