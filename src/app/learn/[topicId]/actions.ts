@@ -2,19 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-function clamp01(n: number) {
-  return Math.max(0, Math.min(1, n));
-}
-
-// Simple mastery update rule (MVP)
-// correct: move toward 1
-// incorrect: move toward 0
-function updateMastery(oldScore: number, correct: boolean) {
-  const s = clamp01(oldScore);
-  if (correct) return clamp01(s + 0.12 * (1 - s));
-  return clamp01(s - 0.12 * s);
-}
+import {
+  gradeMcqAnswer,
+  gradeNumericAnswer,
+  updateMasteryScore
+} from "@/lib/learning/grading";
 
 export async function submitMcqAttempt(formData: FormData) {
   const topicId = String(formData.get("topicId") ?? "");
@@ -51,10 +43,7 @@ export async function submitMcqAttempt(formData: FormData) {
 
   // Grade MCQ
   const correctIndex = q.correct_choice_index as number | null;
-  const correct =
-    selectedChoiceIndex !== null &&
-    correctIndex !== null &&
-    selectedChoiceIndex === correctIndex;
+  const correct = gradeMcqAnswer(selectedChoiceIndex, correctIndex);
 
   // Write attempt (RLS: user_id is set to auth.uid via our code)
   const { error: attemptErr } = await supabase.from("attempts").insert({
@@ -76,16 +65,18 @@ export async function submitMcqAttempt(formData: FormData) {
     const { data: masteryRows, error: masteryErr } = await supabase
       .from("mastery")
       .select("micro_skill_id, mastery_score")
+      .eq("user_id", userData.user.id)
       .in("micro_skill_id", ids);
 
     if (!masteryErr && masteryRows) {
       for (const row of masteryRows as any[]) {
         const oldScore = Number(row.mastery_score ?? 0.3);
-        const newScore = updateMastery(oldScore, correct);
+        const newScore = updateMasteryScore(oldScore, correct);
 
         await supabase
           .from("mastery")
           .update({ mastery_score: newScore })
+          .eq("user_id", userData.user.id)
           .eq("micro_skill_id", row.micro_skill_id);
       }
     }
@@ -123,12 +114,7 @@ export async function submitNumericAttempt(formData: FormData) {
 
   const ans = q.numeric_answer as number | null;
   const tol = q.numeric_tolerance as number | null;
-
-  let correct = false;
-  if (input !== null && ans !== null) {
-    const tolerance = tol ?? 0;
-    correct = Math.abs(input - ans) <= tolerance;
-  }
+  const correct = gradeNumericAnswer(input, ans, tol);
 
   const { error: attemptErr } = await supabase.from("attempts").insert({
     user_id: userData.user.id,
@@ -148,12 +134,13 @@ export async function submitNumericAttempt(formData: FormData) {
     const { data: masteryRows } = await supabase
       .from("mastery")
       .select("micro_skill_id, mastery_score")
+      .eq("user_id", userData.user.id)
       .in("micro_skill_id", ids);
 
     if (masteryRows) {
       for (const row of masteryRows as any[]) {
         const oldScore = Number(row.mastery_score ?? 0.3);
-        const newScore = updateMastery(oldScore, correct);
+        const newScore = updateMasteryScore(oldScore, correct);
 
         await supabase
           .from("mastery")
@@ -166,4 +153,3 @@ export async function submitNumericAttempt(formData: FormData) {
 
   redirect(`/learn/${topicId}?last=${encodeURIComponent(questionId)}&correct=${correct ? "1" : "0"}`);
 }
-

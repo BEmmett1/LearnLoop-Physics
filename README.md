@@ -1,33 +1,93 @@
 # LearnLoop Physics (MVP)
 
-An adaptive learning app for High School Physics (algebra-based), starting with 1D Kinematics.
-It personalizes practice using micro-skill mastery, provides immediate feedback, and tracks progress to milestones.
+An adaptive learning app for high school physics (algebra-based), starting with 1D kinematics.
+It personalizes practice with micro-skill mastery tracking and immediate feedback.
 
-## MVP Scope
-- Sign up / login
-- Diagnostic (15 questions)
-- Adaptive lesson sessions
-- Micro-skill mastery tracking
-- Progress dashboard
-- AI-assisted feedback for explain-it-back responses (grounded to canonical solutions)
+## Current Status
+
+Implemented today:
+
+- Email/password signup, login, logout (Supabase Auth)
+- Protected dashboard with topic unlock logic
+- Topic progress based on micro-skill mastery averages
+- Learn flow for `MCQ` and `NUMERIC` questions
+- Attempt recording and mastery updates after submissions
+- Supabase migrations with RLS and `init_user_progress` RPC
+- Seeded content for physics topics, micro-skills, and questions
+
+Planned / not fully implemented yet:
+
+- Full diagnostic session flow
+- `SETUP` and `EXPLAIN` submission handling
+- Browser E2E automation
+- AI explain-it-back feedback wiring
 
 ## Tech Stack
+
 - Next.js + TypeScript
 - Supabase (Auth + Postgres + RLS)
-- OpenAI API (feedback only in MVP)
-- Vercel deployment
+- OpenAI API (planned for explain-it-back feedback)
+- Vercel deployment target
 
-## Repo Docs
-See `/docs` for requirements, architecture, algorithms, testing, and SDLC.
+## Repository Docs
+
+See [`docs/`](docs) for architecture, requirements, data model, SDLC, and DB/bootstrap guidance.
 
 ## Local Setup
+
 1. Install dependencies
-   - `npm install`
-2. Copy env file
-   - `cp .env.example .env.local`
-3. Add your Supabase and OpenAI keys
-4. Run dev server
-   - `npm run dev`
+
+```bash
+npm install
+```
+
+2. Create `.env.local` and set required variables
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+3. Seed DB content (after applying migrations)
+
+```bash
+npm run seed
+```
+
+4. Verify DB structure and seed health
+
+```bash
+npm run verify:db
+```
+
+5. Run the app
+
+```bash
+npm run dev
+```
 
 ## Scripts
-- `npm run test` runs unit tests
+
+- `npm run dev` starts the Next.js dev server
+- `npm run build` creates a production build
+- `npm run start` serves the production build
+- `npm run seed` seeds topics/micro-skills/questions
+- `npm run verify:db` verifies required DB tables and seeded data
+- `npm run test` runs tests once
+- `npm run test:watch` runs tests in watch mode
+- `npm run test:coverage` runs tests with coverage output
+
+## Testing
+
+Current baseline coverage:
+
+- Unit tests for pure grading/mastery logic
+- Server-action integration-style tests with mocked Supabase + redirect behavior
+- No live Supabase credentials required for test execution
+
+Deferred to next phase:
+
+- Browser E2E tests (Playwright)
+- End-to-end coverage for full auth-to-learning user journeys
+- Tests for future `SETUP` and `EXPLAIN` submission flows
