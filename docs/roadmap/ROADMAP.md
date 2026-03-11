@@ -2,6 +2,13 @@
 
 This roadmap reflects the current repository implementation state.
 
+## Source Of Truth
+- Product status and execution ordering: this file (`docs/roadmap/ROADMAP.md`).
+- Runtime algorithms and scoring behavior: `docs/algorithms.md`.
+- System and boundary model: `docs/architecture.md` and `docs/data-model.md`.
+- Team process and quality gates: `docs/DEFINITION_OF_DONE.md`, `docs/sdlc.md`, `docs/pull_request_template.md`.
+- Pending question-type and AI integration contract: `docs/IMPLEMENTATION_CONTRACTS.md`.
+
 ## NOW (Shipped / In Production Scope)
 - Supabase Auth flow is implemented: signup, login, logout.
 - Protected dashboard is implemented with per-topic progress cards.
@@ -26,6 +33,14 @@ This roadmap reflects the current repository implementation state.
 - Expand tests for new `SETUP`/`EXPLAIN` flows (unit + action tests).
 - Add browser E2E coverage for the core journey: auth -> diagnostic -> dashboard -> learn.
 - Add explicit error-state UX polish and user-facing messaging for common failures.
+
+## Execution Order For Next Tranche
+1. `SETUP` handlers (learn + diagnostic).
+2. `EXPLAIN` handlers (learn + diagnostic).
+3. OpenAI-grounded explain-it-back feedback.
+4. Expanded tests (unit + action + error paths).
+5. Core-journey browser E2E.
+6. Error-state UX polish.
 
 ## LATER (Post-MVP Expansion)
 - Spaced review scheduling and dedicated review-mode sessions.
