@@ -12,12 +12,14 @@ Implemented today:
 - Topic progress based on micro-skill mastery averages
 - Learn flow for `MCQ` and `NUMERIC` questions
 - Attempt recording and mastery updates after submissions
+- End-to-end onboarding diagnostic flow (`/diagnostic`) with 15 mixed `MCQ` + `NUMERIC` questions
+- Diagnostic session persistence and completion gating before lesson access
+- Difficulty-scaled mastery updates during diagnostic submissions
 - Supabase migrations with RLS and `init_user_progress` RPC
 - Seeded content for physics topics, micro-skills, and questions
 
 Planned / not fully implemented yet:
 
-- Full diagnostic session flow
 - `SETUP` and `EXPLAIN` submission handling
 - Browser E2E automation
 - AI explain-it-back feedback wiring
@@ -92,7 +94,8 @@ These are required because `npm run build` evaluates app code paths that depend 
 Current baseline coverage:
 
 - Unit tests for pure grading/mastery logic
-- Server-action integration-style tests with mocked Supabase + redirect behavior
+- Unit tests for diagnostic selection and difficulty-scaled mastery updates
+- Server-action integration-style tests with mocked Supabase + redirect behavior (learn + diagnostic)
 - No live Supabase credentials required for test execution
 
 Deferred to next phase:

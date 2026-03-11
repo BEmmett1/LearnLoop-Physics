@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { hasCompletedDiagnosticSession } from "@/lib/learning/diagnostic";
 import { LogoutButton } from "./LogoutButton";
 import { TopicCard } from "./TopicCard";
 
@@ -7,7 +8,7 @@ type TopicRow = {
   id: string;
   name: string;
   order: number;
-  prerequisite_topic_ids: any; // jsonb, usually string[]
+  prerequisite_topic_ids: any;
 };
 
 type MasteryRow = {
@@ -18,7 +19,7 @@ type MasteryRow = {
 type QuestionRow = {
   id: string;
   topic_id: string;
-  micro_skill_ids: any; // jsonb array
+  micro_skill_ids: any;
 };
 
 function asStringArray(v: any): string[] {
@@ -27,13 +28,20 @@ function asStringArray(v: any): string[] {
   return [];
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+
   const supabase = await createSupabaseServerClient();
 
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user) redirect("/login");
 
-  // Initialize user progress (idempotent)
+  const diagnosticCompleteFlag = String(sp.diag ?? "") === "complete";
+
   const { error: initErr } = await supabase.rpc("init_user_progress");
   if (initErr) {
     return (
@@ -45,13 +53,20 @@ export default async function DashboardPage() {
     );
   }
 
-  // Fetch topics, mastery, and question skill mappings
-  const [{ data: topics, error: topicsErr }, { data: mastery, error: masteryErr }, { data: questions, error: questionsErr }] =
-    await Promise.all([
-      supabase.from("topics").select("id,name,order,prerequisite_topic_ids").order("order"),
-      supabase.from("mastery").select("micro_skill_id,mastery_score").order("micro_skill_id"),
-      supabase.from("questions").select("id,topic_id,micro_skill_ids")
-    ]);
+  const hasCompletedDiagnostic = await hasCompletedDiagnosticSession(
+    supabase,
+    userData.user.id
+  );
+
+  const [
+    { data: topics, error: topicsErr },
+    { data: mastery, error: masteryErr },
+    { data: questions, error: questionsErr }
+  ] = await Promise.all([
+    supabase.from("topics").select("id,name,order,prerequisite_topic_ids").order("order"),
+    supabase.from("mastery").select("micro_skill_id,mastery_score").order("micro_skill_id"),
+    supabase.from("questions").select("id,topic_id,micro_skill_ids")
+  ]);
 
   if (topicsErr || masteryErr || questionsErr) {
     return (
@@ -70,7 +85,6 @@ export default async function DashboardPage() {
   const masteryMap = new Map<string, number>();
   for (const m of masteryRows) masteryMap.set(m.micro_skill_id, m.mastery_score ?? 0);
 
-  // Build: topicId -> set of microSkillIds used in that topic’s questions
   const topicSkillSets = new Map<string, Set<string>>();
   for (const q of questionRows) {
     const skills = asStringArray(q.micro_skill_ids);
@@ -79,8 +93,7 @@ export default async function DashboardPage() {
     for (const s of skills) set.add(s);
   }
 
-  // Compute progress per topic as average mastery of its micro-skills
-  const topicProgress = new Map<string, number>(); // 0..1
+  const topicProgress = new Map<string, number>();
   for (const t of topicRows) {
     const set = topicSkillSets.get(t.id) ?? new Set<string>();
     const skills = Array.from(set);
@@ -95,12 +108,9 @@ export default async function DashboardPage() {
     topicProgress.set(t.id, sum / skills.length);
   }
 
-  // Completion threshold for topic mastery
   const COMPLETE_AT = 0.75;
-
   const isComplete = (topicId: string) => (topicProgress.get(topicId) ?? 0) >= COMPLETE_AT;
 
-  // Unlocked if all prerequisite topics are complete (or no prereqs)
   const unlockedMap = new Map<string, boolean>();
   for (const t of topicRows) {
     const prereqs = asStringArray(t.prerequisite_topic_ids);
@@ -108,10 +118,8 @@ export default async function DashboardPage() {
     unlockedMap.set(t.id, unlocked);
   }
 
-  // Pick next topic to continue: first unlocked and not complete, else first topic
   const nextTopic =
-    topicRows.find(t => unlockedMap.get(t.id) && !isComplete(t.id)) ??
-    topicRows[0];
+    topicRows.find(t => unlockedMap.get(t.id) && !isComplete(t.id)) ?? topicRows[0];
 
   const avgMastery =
     masteryRows.length > 0
@@ -130,6 +138,50 @@ export default async function DashboardPage() {
         <LogoutButton />
       </div>
 
+      {!hasCompletedDiagnostic && (
+        <section
+          style={{
+            marginTop: 18,
+            padding: 14,
+            border: "1px solid #ddd",
+            borderRadius: 10,
+            background: "#fffaf0"
+          }}
+        >
+          <div style={{ fontWeight: 700 }}>Diagnostic required</div>
+          <p style={{ marginTop: 6, marginBottom: 10, color: "#555" }}>
+            Complete your 15-question diagnostic to unlock lesson mode.
+          </p>
+          <a
+            href="/diagnostic"
+            style={{
+              display: "inline-block",
+              padding: "10px 12px",
+              borderRadius: 10,
+              border: "1px solid #ddd",
+              textDecoration: "none",
+              color: "#111"
+            }}
+          >
+            Start diagnostic
+          </a>
+        </section>
+      )}
+
+      {diagnosticCompleteFlag && (
+        <section
+          style={{
+            marginTop: 18,
+            padding: 14,
+            border: "1px solid #ddd",
+            borderRadius: 10,
+            background: "#eef9f2"
+          }}
+        >
+          Diagnostic complete. Your learning topics are unlocked.
+        </section>
+      )}
+
       <section style={{ marginTop: 18, padding: 14, border: "1px solid #ddd", borderRadius: 10 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
           <div>
@@ -139,7 +191,7 @@ export default async function DashboardPage() {
 
           {nextTopic && (
             <a
-              href={`/learn/${nextTopic.id}`}
+              href={hasCompletedDiagnostic ? `/learn/${nextTopic.id}` : "/diagnostic"}
               style={{
                 display: "inline-block",
                 padding: "10px 12px",
@@ -149,7 +201,9 @@ export default async function DashboardPage() {
                 color: "#111"
               }}
             >
-              Continue: Topic {nextTopic.order}
+              {hasCompletedDiagnostic
+                ? `Continue: Topic ${nextTopic.order}`
+                : "Complete diagnostic first"}
             </a>
           )}
         </div>
@@ -173,13 +227,15 @@ export default async function DashboardPage() {
                 unlocked={unlocked}
                 progressPct={progressPct}
                 prereqIds={prereqs}
+                href={hasCompletedDiagnostic ? `/learn/${t.id}` : "/diagnostic"}
+                ctaLabel={hasCompletedDiagnostic ? "Start or continue" : "Diagnostic required"}
               />
             );
           })}
         </div>
 
         <p style={{ marginTop: 14, color: "#666", fontSize: 12 }}>
-          Topic progress is calculated as the average mastery of the micro-skills that appear in that topic’s questions.
+          Topic progress is calculated as the average mastery of the micro-skills that appear in that topic's questions.
           Completion threshold is {Math.round(COMPLETE_AT * 100)}%.
         </p>
       </section>
